@@ -7,10 +7,9 @@ COL_SP=':::::'
 
 help () {
 	echo -e "Утилита для быстрого копирования значения по ключу из файла в буфер\nДоступные параметры:"
-	echo -e "\t- list              - получение всех строк из файла"
-	echo -e "\t- get <key>         - копирование значения по указанному ключу в буфер"
-	echo -e "\t- add <key> <value> - добавление новой пары ключ/значение"
-	echo -e "\t- delete <key>      - удаление записи по ключу"
+	echo -e "\t- -l                 - получение всех строк из файла"
+	echo -e "\t- -add <key> <value> - добавление новой пары ключ/значение"
+	echo -e "\t- -rm <key>          - удаление записи по ключу"
 	exit
 }
 
@@ -24,21 +23,21 @@ list () {
 }
 
 get () {
-	if [ -z $2 ] ; then
+	if [ -z $1 ] ; then
 		err "Введите ключ"
 	fi
 
-	PASSWORD=$(awk -F $COL_SP '/^'$2$COL_SP'/{print $2}' $STORAGE)
+	PASSWORD=$(awk -F $COL_SP '/^'$1$COL_SP'/{print $2}' $STORAGE)
 
 	if [ -z $PASSWORD ] ; then
-		err "Ключ $2 не существует"
+		err "Ключ $1 не существует"
 	fi
 
-	if [[ $(awk -F $COL_SP '/^'$2'/{print $3}' $STORAGE) -eq 1 ]] ; then
+	if [[ $(awk -F $COL_SP '/^'$1'/{print $3}' $STORAGE) -eq 1 ]] ; then
 		PASSWORD=$(echo $PASSWORD | openssl aes-256-cbc -a -A -d)
 	fi
 
-	echo $PASSWORD | tr -d '\n' | pbcopy
+	echo $PASSWORD | tr -d '\n' | xclip -sel c
 }
 
 del () {
@@ -68,6 +67,10 @@ add () {
 	printf "%s${COL_SP}%s${COL_SP}%s\n" $LOGIN $PASSWORD $ENCRYPT >> $STORAGE
 }
 
+invalid () {
+	err "Команда $1 не существует"
+}
+
 cssh () {
 	get $@
 	ssh $2
@@ -80,11 +83,14 @@ if [ -z "$1" ] ; then
 fi
 
 case $1 in
-	help) help ;;
-	list) list ;;
-	get)  get $@ ;;
-	add)  add $@ ;;
-	del)  del $@ ;;
-	ssh)  cssh $@ ;;
-	*)    help ;;
+	-h)   help ;;
+	-help)   help ;;
+	-ls)   list ;;
+	-list)   list ;;
+	-add) add $@ ;;
+	-a) add $@ ;;
+	-rm)  del $@ ;;
+	-ssh) cssh $@ ;;
+	-*)   invalid $@ ;;
+	*)    get $1 ;;
 esac
